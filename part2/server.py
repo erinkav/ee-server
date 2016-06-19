@@ -1,6 +1,6 @@
 # Tested with Python 2.7.9, Linux & Mac OS X
 import socket
-import StringIO
+from io import StringIO
 import sys
 
 
@@ -42,7 +42,7 @@ class WSGIServer(object):
             self.handle_one_request()
 
     def handle_one_request(self):
-        self.request_data = request_data = self.client_connection.recv(1024)
+        self.request_data = request_data = self.client_connection.recv(1024).decode('utf-8')
         # Print formatted request data a la 'curl -v'
         print(''.join(
             '< {line}\n'.format(line=line)
@@ -79,7 +79,7 @@ class WSGIServer(object):
         # Required WSGI variables
         env['wsgi.version']      = (1, 0)
         env['wsgi.url_scheme']   = 'http'
-        env['wsgi.input']        = StringIO.StringIO(self.request_data)
+        env['wsgi.input']        = StringIO(self.request_data)
         env['wsgi.errors']       = sys.stderr
         env['wsgi.multithread']  = False
         env['wsgi.multiprocess'] = False
@@ -111,13 +111,13 @@ class WSGIServer(object):
                 response += '{0}: {1}\r\n'.format(*header)
             response += '\r\n'
             for data in result:
-                response += data
+                response += data.decode('utf-8')
             # Print formatted response data a la 'curl -v'
             print(''.join(
                 '> {line}\n'.format(line=line)
                 for line in response.splitlines()
             ))
-            self.client_connection.sendall(response)
+            self.client_connection.sendall(bytes(response, 'utf-8'))
         finally:
             self.client_connection.close()
 
@@ -127,7 +127,7 @@ SERVER_ADDRESS = (HOST, PORT) = '', 8888
 
 def make_server(server_address, application):
     server = WSGIServer(server_address)
-    server.set_app(application)
+    server.set_app(application) #Sets app to django application
     return server
 
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     app_path = sys.argv[1]
     module, application = app_path.split(':')
     module = __import__(module)
-    application = getattr(module, application)
+    application = getattr(module, application) #this is Django application
     httpd = make_server(SERVER_ADDRESS, application)
     print('WSGIServer: Serving HTTP on port {port} ...\n'.format(port=PORT))
     httpd.serve_forever()
